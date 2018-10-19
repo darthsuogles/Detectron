@@ -169,7 +169,7 @@ def main(args):
             cls_segms,
             cls_keyps,
             dataset=dummy_coco_dataset,
-            box_alpha=0.3,
+            box_alpha=0.5,
             show_class=True,
             thresh=args.thresh,
             kp_thresh=args.kp_thresh,

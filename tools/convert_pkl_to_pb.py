@@ -74,6 +74,9 @@ def parse_args():
         '--cfg', dest='cfg_file', help='optional config file', default=None,
         type=str)
     parser.add_argument(
+        '--wts', dest='wts_file', help='optional weights file', default=None,
+        type=str)
+    parser.add_argument(
         '--net_name', dest='net_name', help='optional name for the net',
         default="detectron", type=str)
     parser.add_argument(
@@ -404,18 +407,18 @@ def _save_models(all_net, all_init_net, args):
     if not os.path.exists(args.out_dir):
         os.makedirs(args.out_dir)
 
-    with open(os.path.join(args.out_dir, fname + '.pb'), 'w') as f:
+    with open(os.path.join(args.out_dir, fname + '.pb'), 'wb') as f:
         f.write(all_net.Proto().SerializeToString())
     with open(os.path.join(args.out_dir, fname + '.pbtxt'), 'w') as f:
         f.write(str(all_net.Proto()))
-    with open(os.path.join(args.out_dir, fname + '_init.pb'), 'w') as f:
+    with open(os.path.join(args.out_dir, fname + '_init.pb'), 'wb') as f:
         f.write(all_init_net.Proto().SerializeToString())
 
     _save_image_graphs(args, all_net, all_init_net)
 
 
 def load_model(args):
-    model = test_engine.initialize_model_from_cfg(cfg.TEST.WEIGHTS)
+    model = test_engine.initialize_model_from_cfg(args.wts_file)
     blobs = mutils.get_ws_blobs()
 
     return model, blobs
@@ -452,8 +455,9 @@ def _sort_results(boxes, segms, keypoints, classes):
 
 def run_model_cfg(args, im, check_blobs):
     workspace.ResetWorkspace()
+    gpu_id = 1
     model, _ = load_model(args)
-    with c2_utils.NamedCudaScope(0):
+    with c2_utils.NamedCudaScope(gpu_id):
         cls_boxes, cls_segms, cls_keyps = test_engine.im_detect_all(
             model, im, None, None,
         )
@@ -468,14 +472,14 @@ def run_model_cfg(args, im, check_blobs):
     # write final results back to workspace
     def _ornone(res):
         return np.array(res) if res is not None else np.array([], dtype=np.float32)
-    with c2_utils.NamedCudaScope(0):
+    with c2_utils.NamedCudaScope(gpu_id):
         workspace.FeedBlob(core.ScopedName('result_boxes'), _ornone(boxes))
         workspace.FeedBlob(core.ScopedName('result_segms'), _ornone(segms))
         workspace.FeedBlob(core.ScopedName('result_keypoints'), _ornone(keypoints))
         workspace.FeedBlob(core.ScopedName('result_classids'), _ornone(classes))
 
     # get result blobs
-    with c2_utils.NamedCudaScope(0):
+    with c2_utils.NamedCudaScope(gpu_id):
         ret = _get_result_blobs(check_blobs)
 
     return ret
@@ -569,6 +573,9 @@ def verify_model(args, model_pb, test_img_file):
         "result_boxes", "result_classids",  # result
     ]
 
+    workspace.ResetWorkspace();
+    device_opts = core.DeviceOption(caffe2_pb2.CUDA, 1)
+
     print('Loading test file {}...'.format(test_img_file))
     test_img = cv2.imread(test_img_file)
     assert test_img is not None
@@ -643,6 +650,7 @@ def main():
     init_net.Proto().name = args.net_name + "_init"
 
     if args.test_img is not None:
+        print("Loading exported model in Caffe2 and test consistency")
         verify_model(args, [net, init_net], args.test_img)
 
     _save_models(net, init_net, args)
