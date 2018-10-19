@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -eu -o pipefail
+set -eux -o pipefail
 
 _bsd_="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -19,6 +19,6 @@ trap on_error ERR
 
 PYTHONPATH="${_bsd_}/.." \
           python "${_bsd_}/infer_simple.py" \
-          --cfg models/mask_rcnn_R-50-FPN_2x/model.yaml \
-          --wts models/mask_rcnn_R-50-FPN_2x/weights.pkl \
+          --cfg /mnt/storage/models/mask_rcnn_R-50-FPN_2x/model.yaml \
+          --wts /mnt/storage/models/mask_rcnn_R-50-FPN_2x/weights.pkl \
           /mnt/storage/datasets
