@@ -1,7 +1,7 @@
 numpy>=1.13
 pyyaml>=3.12
 matplotlib
-opencv-python>=3.2
+opencv-python-headless>=3.2
 setuptools
 Cython
 mock
@@ -9,3 +9,5 @@ scipy
 six
 future
 protobuf
+pydot
+pycocotools
